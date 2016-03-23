@@ -3,8 +3,6 @@ package litejob
 import (
 	"sync"
 	"time"
-	"fmt"
-	"os"
 )
 
 type LocalDispatch struct {
@@ -30,13 +28,12 @@ func NewLocalDispatch(configure *DispatchConfigure) *LocalDispatch {
 }
 
 func (this *LocalDispatch)scaleStorage() {
-
+	
 	if this.jobStoreageLen < 1024 {
 		jobs := make([]Job, this.jobStoreageLen)
 		this.JobList = append(this.JobList, jobs...)
 		this.jobStoreageLen += this.jobStoreageLen
 	}else {
-
 		jobs := make([]Job, 1024)
 		this.JobList = append(this.JobList, jobs...)
 		this.jobStoreageLen += 1024
@@ -97,7 +94,6 @@ func (this *LocalDispatch)loop() {
 
 	for {
 
-		fmt.Fprintln(os.Stderr,"heart")
 		if this.running < this.configure.MaxConcurrency  && this.next() {
 			continue;
 		}
@@ -130,7 +126,6 @@ func (this *LocalDispatch)next() bool {
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintln(os.Stderr,r)
 			this.log.Error("run job error")
 		}
 	}()
@@ -175,8 +170,6 @@ func (this *LocalDispatch)do(job Job) {
 		job.replyCount++
 		this.JobPush(job)
 	}
-
-	fmt.Fprintln(os.Stderr,"do end")
 
 }
 
