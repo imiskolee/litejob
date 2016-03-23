@@ -31,7 +31,6 @@ type Dispatch interface{
 	Stop()				bool			// 停止服务
 
 	RegisterHandler(name string,handler JobHandler) bool
-
 }
 
 

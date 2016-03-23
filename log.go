@@ -17,10 +17,7 @@ func NewLog(path string) *Log{
 
 	if err != nil {
 		file = os.Stderr
-	}else{
-
 	}
-
 
 	log := log.New(file,"",log.LstdFlags|log.Lshortfile)
 	m := new(Log)

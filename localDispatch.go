@@ -28,7 +28,7 @@ func NewLocalDispatch(configure *DispatchConfigure) *LocalDispatch {
 }
 
 func (this *LocalDispatch)scaleStorage() {
-	
+
 	if this.jobStoreageLen < 1024 {
 		jobs := make([]Job, this.jobStoreageLen)
 		this.JobList = append(this.JobList, jobs...)
@@ -164,13 +164,13 @@ func (this *LocalDispatch)do(job Job) {
 	runTime := int(end.Sub(start).Seconds() * 1000)
 	watingTime := int(end.Sub(job.CreateTime).Seconds())
 
-	this.log.Normal("%40s %2d %8dms %8ds", job.Name, ret.Status, runTime, watingTime)
+	this.log.Normal("%20s %2d %8dms %8ds", job.Name, ret.Status, runTime, watingTime)
 
 	if ret.Status == JobStatusAgain && job.replyCount < this.configure.MaxReplyCount {
 		job.replyCount++
 		this.JobPush(job)
 	}
-
+	
 }
 
 //从内存dump到本地
