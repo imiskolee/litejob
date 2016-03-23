@@ -3,6 +3,9 @@ package litejob
 import (
 	"sync"
 	"time"
+	"runtime"
+	"fmt"
+	"os"
 )
 
 type LocalDispatch struct {
@@ -61,12 +64,17 @@ func (this *LocalDispatch)JobPush(job Job) bool {
 	this.Lock()
 	if this.jobStoreageLen - this.jobLen < 100 {
 		this.scaleStorage()
-	}else{
-		this.scaleStorage()
+	}else if(this.jobStoreageLen - this.jobLen > 1024){
+		list := make([]Job,0)
+		list = append(list,this.JobList[0:this.jobLen+1]...)
+		this.JobList = list
+		this.jobStoreageLen = uint32(len(this.JobList))
 	}
-
 	this.JobList[this.jobLen] = job
 	this.jobLen++
+
+	fmt.Fprintf(os.Stderr,"%d %d %d\n",this.jobLen,this.jobStoreageLen,len(this.JobList))
+
 	this.Unlock()
 	return true
 }
@@ -82,7 +90,6 @@ func (this *LocalDispatch)FlushJob() bool {
 	return true
 }
 
-
 func (this *LocalDispatch)Status() DispatchStatus {
 	return DispatchStatus{
 		Len:this.jobLen,
@@ -93,13 +100,16 @@ func (this *LocalDispatch)Status() DispatchStatus {
 func (this *LocalDispatch)loop() {
 
 	for {
-
 		if this.running < this.configure.MaxConcurrency  && this.next() {
+			time.Sleep(100 * time.Microsecond)
+			runtime.Gosched()
+			runtime.GC()
 			continue;
 		}
 		time.Sleep(this.configure.HeartInterval)
 	}
 }
+
 
 func (this *LocalDispatch)Start() bool {
 
@@ -107,7 +117,10 @@ func (this *LocalDispatch)Start() bool {
 		return false
 	}
 
-	this.loop()
+	for{
+		this.loop()
+		time.Sleep(10 * time.Second)
+	}
 
 	return true
 }
@@ -133,12 +146,12 @@ func (this *LocalDispatch)next() bool {
 	if this.jobLen < 1 {
 		return false
 	}
-
 	this.Lock()
+	this.jobLen--
 	job := this.JobList[0]
 	this.JobList = this.JobList[1:]
+	this.jobStoreageLen--
 	go  this.do(job)
-	this.jobLen--
 	this.Unlock()
 
 	return true
@@ -164,13 +177,13 @@ func (this *LocalDispatch)do(job Job) {
 	runTime := int(end.Sub(start).Seconds() * 1000)
 	watingTime := int(end.Sub(job.CreateTime).Seconds())
 
-	this.log.Normal("%20s %2d %8dms %8ds", job.Name, ret.Status, runTime, watingTime)
+	this.log.Normal("%40s %2d %8dms %8ds", job.Name, ret.Status, runTime, watingTime)
 
 	if ret.Status == JobStatusAgain && job.replyCount < this.configure.MaxReplyCount {
 		job.replyCount++
 		this.JobPush(job)
 	}
-	
+
 }
 
 //从内存dump到本地
