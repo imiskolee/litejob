@@ -26,6 +26,7 @@ type JobReturn struct {
 
 type JobHandler func(raw interface{}) JobReturn
 
+type JobCallback func(id string,name string,status int,msg string)
 
 type Job struct {
 

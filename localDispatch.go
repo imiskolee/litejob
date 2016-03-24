@@ -48,17 +48,20 @@ func (this *LocalDispatch)RegisterHandler(name string, handler JobHandler) bool 
 	return true
 }
 
-func (this *LocalDispatch)JobNew(name string,param interface{}) bool {
+func (this *LocalDispatch)JobNew(name string,param interface{}) string {
 
 	job := Job{
+		Id:Guid(),
 		Name:name,
 		Param:param,
 		CreateTime:time.Now(),
 		Status : JobStatusWating,
 	}
 
-	return this.JobPush(job)
+	this.JobPush(job)
+	return job.Id
 }
+
 
 func (this *LocalDispatch)JobPush(job Job) bool {
 	this.Lock()
@@ -100,16 +103,17 @@ func (this *LocalDispatch)Status() DispatchStatus {
 func (this *LocalDispatch)loop() {
 
 	for {
+
 		if this.running < this.configure.MaxConcurrency  && this.next() {
-			time.Sleep(100 * time.Microsecond)
-			runtime.Gosched()
+			time.Sleep(10 * time.Microsecond)
 			runtime.GC()
+			runtime.Gosched()
 			continue;
 		}
+
 		time.Sleep(this.configure.HeartInterval)
 	}
 }
-
 
 func (this *LocalDispatch)Start() bool {
 
@@ -124,7 +128,6 @@ func (this *LocalDispatch)Start() bool {
 
 	return true
 }
-
 
 func (this *LocalDispatch)Stop() bool{
 
@@ -182,8 +185,11 @@ func (this *LocalDispatch)do(job Job) {
 	if ret.Status == JobStatusAgain && job.replyCount < this.configure.MaxReplyCount {
 		job.replyCount++
 		this.JobPush(job)
+	}else{
+		if this.configure.JobCallback != nil {
+			this.configure.JobCallback(job.Id,job.Name,int(ret.Status),ret.Msg)
+		}
 	}
-
 }
 
 //从内存dump到本地

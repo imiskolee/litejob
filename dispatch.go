@@ -10,11 +10,10 @@ type DispatchConfigure struct {
 	HeartInterval		time.Duration	//心跳时间
 	Logfile 			string
 	EngineConfigure 	map[string]interface{}
+	JobCallback 		JobCallback
 }
 
-
 type DispatchStatus struct {
-
 	Running 	uint32
 	Len 		uint32
 	Jobs 		uint32
@@ -22,7 +21,7 @@ type DispatchStatus struct {
 
 type Dispatch interface{
 
-	JobNew(name string,param interface{}) bool
+	JobNew(name string,param interface{}) string
 	JobPush(job Job) 	bool			//推入一条任务
 	JobLen() 			uint32			//当前队列长度
 	FlushJob() 			bool			//清空所有任务
@@ -32,7 +31,6 @@ type Dispatch interface{
 
 	RegisterHandler(name string,handler JobHandler) bool
 }
-
 
 func NewDispatch(configure *DispatchConfigure)(Dispatch) {
 
