@@ -6,6 +6,11 @@ import (
 	"runtime"
 	"fmt"
 	"os"
+	"encoding/gob"
+)
+
+const (
+	EngineLocal = "local"
 )
 
 type LocalDispatch struct {
@@ -17,6 +22,9 @@ type LocalDispatch struct {
 	jobLen         uint32
 	jobStoreageLen uint32
 	log            *Log
+
+	state 		  bool
+
 }
 
 func NewLocalDispatch(configure *DispatchConfigure) *LocalDispatch {
@@ -27,6 +35,10 @@ func NewLocalDispatch(configure *DispatchConfigure) *LocalDispatch {
 	dispatch.JobList = make([]Job, 1024)
 	dispatch.jobStoreageLen = uint32(len(dispatch.JobList))
 	dispatch.log = NewLog(configure.Logfile)
+
+	dispatch.state = true
+
+
 	return dispatch
 }
 
@@ -102,7 +114,20 @@ func (this *LocalDispatch)Status() DispatchStatus {
 
 func (this *LocalDispatch)loop() {
 
+	lastDumpTime := time.Now()
+
 	for {
+
+
+		if ! this.state {
+			break
+		}
+
+ 		now := time.Now()
+
+		if now.Sub(lastDumpTime) > (60 * time.Second) {
+			this.Dump()
+		}
 
 		if this.running < this.configure.MaxConcurrency  && this.next() {
 			time.Sleep(10 * time.Microsecond)
@@ -112,6 +137,7 @@ func (this *LocalDispatch)loop() {
 		}
 
 		time.Sleep(this.configure.HeartInterval)
+
 	}
 }
 
@@ -122,6 +148,10 @@ func (this *LocalDispatch)Start() bool {
 	}
 
 	for{
+
+		if ! this.state {
+			break
+		}
 		this.loop()
 		time.Sleep(10 * time.Second)
 	}
@@ -130,9 +160,8 @@ func (this *LocalDispatch)Start() bool {
 }
 
 func (this *LocalDispatch)Stop() bool{
-
+	this.state = false
 	this.Dump()
-
 	return false
 }
 
@@ -194,15 +223,72 @@ func (this *LocalDispatch)do(job Job) {
 
 //从内存dump到本地
 func (this *LocalDispatch)Dump() bool {
+
+	if this.jobLen < 1 {
+		return true
+	}
+
+	file,ok := this.configure.EngineConfigure["dump_file"]
+
+	if !ok {
+		return false
+	}
+
+	this.Lock()
+
+	f,err := os.Create(file.(string))
+
+	if err != nil {
+		return false
+	}
+
+	enc := gob.NewEncoder(f)
+	err = enc.Encode(this.JobList[0:this.jobLen])
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr,"[litejob] dump error:" + err.Error())
+			return false
+	}
+
+	this.Unlock()
 	return true
 }
+
+
 
 func (this *LocalDispatch)Load() bool {
 
+	file,ok := this.configure.EngineConfigure["dump_file"]
+
+	if !ok {
+		return false
+	}
+
+	this.Lock()
+
+	f,err := os.Open(file.(string))
+
+	if err != nil {
+		return false
+	}
+
+	enc := gob.NewDecoder(f)
+
+	err = enc.Decode(&this.JobList)
+	this.jobLen = uint32(len(this.JobList))
+	this.jobStoreageLen = this.jobLen
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr,"load file error:" + err.Error())
+	}
+
+	this.Unlock()
 	return true
 }
 
-
+func init(){
+	gob.Register(map[string]interface{}{})
+}
 
 
 
