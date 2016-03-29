@@ -3,6 +3,7 @@ package litejob
 import (
 	"time"
 	"runtime"
+	"fmt"
 )
 
 const (
@@ -83,7 +84,7 @@ func (this *Dispatch)JobNew(name string,param interface{}) (*Job,error) {
 	}
 
 	err := this.storage.JobPush(job)
-	
+
 	if err != nil {
 		this.log.Error("push job error:" + err.Error())
 	}
@@ -122,7 +123,7 @@ func (this *Dispatch)next(){
 
 	defer func() {
 		if r := recover(); r != nil {
-			this.log.Error("run job error")
+			this.log.Error("run job error:" + fmt.Sprint(r))
 		}
 	}()
 

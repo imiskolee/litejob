@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 	"errors"
-	"github.com/astaxie/beego"
 )
 
 type RedisStorage struct {
@@ -16,8 +15,6 @@ type RedisStorage struct {
 	redisStatusKeyPrefix 	string
 	recommitTryCount 	int
 }
-
-
 
 func NewRedisStorage(configure *DispatchConfigure) *RedisStorage {
 
@@ -105,8 +102,6 @@ func (this *RedisStorage)JobPop()(*Job,error){
 func (this *RedisStorage)JobLen() uint32 {
 
 	cmd := this.redisClient.LLen(this.redisKey)
-
-	beego.Debug(cmd.Result())
 
 	if cmd.Err() == nil {
 		return uint32(cmd.Val())
