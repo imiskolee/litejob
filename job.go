@@ -1,6 +1,10 @@
 package litejob
 
-import "time"
+import (
+	"time"
+
+	"encoding/json"
+)
 
 //任务状态
 type JobStatus uint
@@ -12,7 +16,10 @@ const (
 	JobStatusFailed		JobStatus = 3  	//任务执行失败
 	JobStatusSuccess 	JobStatus = 4  	//任务执行成功
 	JobStatusAgain 		JobStatus = 5  	//任务重新执行,受限于max_reply
+	JobStatusKill 		JobStatus = 100
 )
+
+
 
 //任务函数返回信息
 type JobReturn struct {
@@ -25,7 +32,7 @@ type JobReturn struct {
 type JobHandler func(raw interface{}) JobReturn
 
 //任务回调函数定义
-type JobCallback func(id string,name string,status int,msg string)
+type JobCallback func(job *Job)
 
 //任务
 type Job struct {
@@ -38,6 +45,17 @@ type Job struct {
 	Status 		JobStatus		//任务状态
 	replyCount 	uint32			//重试次数
 }
+
+func (this *Job)MarshalBinary() ([]byte,error){
+
+	return json.Marshal(this)
+}
+
+
+func (this *Job)UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data,this)
+}
+
 
 
 
