@@ -1,10 +1,10 @@
 ### LiteJob
 
-A Golang Task Dispatch.
+A Fast & Safely Golang Task Dispatch.
 
 ### Features
 
-* more storage engine supported
+* more storage engine support
     1. Redis(storage job list with redis list)
     2. Sqlite(storage job list with a table)
     3. Memory(storage job list with a memory map)
@@ -23,6 +23,8 @@ A Golang Task Dispatch.
 * plugin easy
 
 ### RoadMap
+
+
 
 1. support Redis,Sqlite,Memory storage
 2. support Http And Rpc

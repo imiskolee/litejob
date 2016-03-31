@@ -7,6 +7,7 @@ import (
 
 var random *os.File = nil
 
+// its not safely
 func Guid() string {
 
 	if random == nil {
