@@ -6,16 +6,19 @@ import (
 	"fmt"
 )
 
-const (
-	EngineRedis 	= "redis"
-	EngineSqlite 	= "sqlite"
-	EngineMemory 	= "memory"
-)
-
 type JobCallbackConfigure struct {
 
 	After		JobCallback
 	Before		JobCallback
+}
+
+type EngineConfigure map[string]interface{}
+
+func (this *EngineConfigure)Get(name string,defaultVal interface{}) interface{} {
+	if v,ok := (*this)[name];ok {
+		return v
+	}
+	return defaultVal
 }
 
 //任务调度器的控制项
@@ -27,7 +30,7 @@ type DispatchConfigure struct {
 	HeartInterval		time.Duration						//心跳时间
 	DumpInterval 		time.Duration   					//数据持久化间隔时间
 	Logfile 			string								//日志文件,默认为/std/stderr
-	EngineConfigure 	map[string]interface{}				//引擎相关的配置项,localStorage支持dump_file参数,用于持久化内存信息
+	EngineConfigure 	EngineConfigure				//引擎相关的配置项,localStorage支持dump_file参数,用于持久化内存信息
 	Callback 			JobCallbackConfigure				//任务回调方法,每执行一次任务即调用一次该方法
 }
 
@@ -51,7 +54,7 @@ type Dispatch struct{
 	log            *Log
 }
 
-func NewDispatch(configure *DispatchConfigure)(*Dispatch){
+func NewDispatch(configure *DispatchConfigure)(*Dispatch,error){
 
 	dispatch := new(Dispatch)
 
@@ -60,14 +63,16 @@ func NewDispatch(configure *DispatchConfigure)(*Dispatch){
 	dispatch.handlerList = make(map[string]JobHandler,0)
 	dispatch.log = NewLog(dispatch.configure.Logfile)
 
-	switch dispatch.configure.Engine {
+	storage,err := GetStorage(dispatch.configure.Engine,dispatch.configure)
 
-	case EngineRedis : {
-		dispatch.storage = NewRedisStorage(configure)
+	if err != nil {
+		return nil,err
 	}
-	}
-	return dispatch
+
+	dispatch.storage = storage
+	return dispatch,nil
 }
+
 
 func (this *Dispatch)RegisterHandler(name string,handler JobHandler) {
 	this.handlerList[name] = handler
@@ -97,7 +102,6 @@ func (this *Dispatch)Start() {
 	this.Loop()
 }
 
-
 func (this *Dispatch)Loop() {
 
 	for {
@@ -105,15 +109,20 @@ func (this *Dispatch)Loop() {
 		if this.running < this.configure.MaxConcurrency && this.storage.JobLen() > 0 {
 			this.running++
 			go this.next()
+			//remise CPU
 			runtime.Gosched()
-			time.Sleep(5 * time.Millisecond)
+
+			//sleep 2ms when system is busy.
+			if this.running > uint32(this.configure.MaxConcurrency / 2) {
+				time.Sleep(5 * time.Millisecond)
+			}
+
 			continue
 		}
 
 		time.Sleep(this.configure.HeartInterval)
 	}
 }
-
 
 func (this *Dispatch)next(){
 
