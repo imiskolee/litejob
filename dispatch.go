@@ -4,6 +4,8 @@ import (
 	"time"
 	"runtime"
 	"fmt"
+	"runtime/debug"
+	"sync"
 )
 
 type JobCallbackConfigure struct {
@@ -42,12 +44,13 @@ type DispatchStatus struct {
 
 //
 type Dispatch struct{
-
+	sync.Mutex
 	configure *DispatchConfigure
 	storage   Storage
 	running   uint32
 	handlerList map[string]JobHandler
 	log            *Log
+	Count 	uint32
 }
 
 func NewDispatch(configure *DispatchConfigure)(*Dispatch,error){
@@ -102,33 +105,43 @@ func (this *Dispatch)Loop() {
 
 	for {
 
-		if this.running < this.configure.MaxConcurrency && this.storage.JobLen() > 0 {
-			this.running++
-			go this.next()
-			//remise CPU
-			runtime.Gosched()
-
-			//sleep 2ms when system is busy.
-			if this.running > uint32(this.configure.MaxConcurrency / 2) {
-				time.Sleep(5 * time.Millisecond)
+		//队列非空
+		if this.storage.JobLen() > 0 {
+			if this.running < this.configure.MaxConcurrency {
+				this.Lock()
+				this.running++
+				go this.next()
+				this.Unlock()
+				//remise CPU
 			}
-
+			runtime.Gosched()
 			continue
+
 		}
 
 		time.Sleep(this.configure.HeartInterval)
+		runtime.Gosched()
 	}
 }
+
+func (this *Dispatch)JobState(jobId string)(*JobState,error){
+
+	return this.storage.JobState(jobId)
+}
+
 
 func (this *Dispatch)next(){
 
 	defer func(){
+		this.Lock()
 		this.running--
+		this.Unlock()
 	}()
 
 	defer func() {
 		if r := recover(); r != nil {
 			this.log.Error("run job error:" + fmt.Sprint(r))
+			debug.PrintStack()
 		}
 	}()
 
@@ -151,7 +164,7 @@ func (this *Dispatch)next(){
 
 	startTime := time.Now()
 
-	ret := handler(job.Param)
+	ret := handler(job)
 
 	endTime := time.Now()
 
@@ -161,11 +174,28 @@ func (this *Dispatch)next(){
 		this.configure.Callback.After(job)
 	}
 
-
-	if ret.Status == JobStatusAgain && job.replyCount < this.configure.MaxReplyCount{
-		job.replyCount++
-		this.storage.JobPush(job)
+	if ret.Status == JobStatusAgain {
+		if job.replyCount < this.configure.MaxReplyCount {
+			job.replyCount++
+			this.storage.JobPush(job)
+		}else{
+			ret.Status = JobStatusFailed
+			ret.Msg = "over max reply times."
+		}
 	}
 
-	this.log.Normal("%40s %2d %8dms %8ds %s", job.Name, ret.Status, int(endTime.Sub(startTime).Seconds()), int(endTime.Sub(job.CreateTime).Seconds()),ret.Msg)
+	state := &JobState{
+		JobId:job.Id,
+		Status:ret.Status.String(),
+		Msg:ret.Msg,
+		WaitTime:int(endTime.Sub(job.CreateTime).Seconds()),
+		RunTime:int(endTime.Sub(startTime).Nanoseconds() / 1000000),
+	}
+
+	this.storage.JobStateUpdate(state)
+
+
+	this.Count++
+
+	this.log.Normal("%6d %4d %40s %32s %10s %8dms %8ds %s", this.Count,this.running,job.Name, job.Id,ret.Status, state.RunTime,state.WaitTime,ret.Msg)
 }

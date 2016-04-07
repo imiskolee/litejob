@@ -8,12 +8,13 @@ var storages map[string]StorageInitFunc
 
 type Storage interface{
 
-	JobPush(job *Job) 	error
+	JobPush(job *Job) 			error
 	JobPop()(*Job,error)
-	JobFlush() 			error
-	JobLen() 			uint32
+	JobFlush() 					error
+	JobLen() 					uint32
+	JobStateUpdate(state *JobState) error
+	JobState(jobId string)(*JobState,error)
 }
-
 
 func RegisterStorage(name string,storage StorageInitFunc) {
 	storages[name] = storage
