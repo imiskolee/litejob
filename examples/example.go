@@ -87,7 +87,7 @@ func main() {
 	}
 
 	//以协程方式启动守护 go dispatch.Start()
-	dispatch.Start()
+	go dispatch.Start()
 
 	/*
 		time.Sleep(10 * time.Second)
