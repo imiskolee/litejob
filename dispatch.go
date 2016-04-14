@@ -146,6 +146,8 @@ func (this *Dispatch) next() {
 		return
 	}
 
+	job.Status = JobStatusDoing
+
 	if this.configure.Callback.Before != nil {
 		this.configure.Callback.Before(job)
 	}

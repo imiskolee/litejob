@@ -80,7 +80,7 @@ func (this *Redis) JobPush(job *litejob.Job) error {
 
 func (this *Redis) JobPop() (*litejob.Job, error) {
 
-	cmd := this.redisClient.LPop(this.redisKey)
+	cmd := this.redisClient.RPop(this.redisKey)
 
 	if cmd.Err() == nil {
 		job := new(litejob.Job)
