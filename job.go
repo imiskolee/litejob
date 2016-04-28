@@ -3,99 +3,70 @@ package litejob
 import (
 	"encoding/json"
 	"time"
-
-	"strings"
 )
 
-//任务状态
-type JobStatus uint
+//JobStatus 代表任务状态
+type JobStatus string
 
 const (
-	JobStatusWating  JobStatus = 1 //任务已经添加成功,等待执行
-	JobStatusDoing   JobStatus = 2 //任务正在执行
-	JobStatusFailed  JobStatus = 3 //任务执行失败
-	JobStatusSuccess JobStatus = 4 //任务执行成功
-	JobStatusAgain   JobStatus = 5 //任务重新执行,受限于max_reply
-	JobStatusKill    JobStatus = 100
-	JobStatusUnknow  JobStatus = 101
+	//JobStatusWaiting 代表任务已经成功加入队列，正在等待执行
+	JobStatusWaiting JobStatus = "WAITING"
+	//JobStatusSuccess 表示任务已经执行成功
+	JobStatusSuccess JobStatus = "SUCCESS"
+	//JobStatusFailed 表示任务在逻辑上执行失败
+	JobStatusFailed JobStatus = "FAILED"
+	//JobStatusAgain 表示任务正在重试
+	JobStatusAgain JobStatus = "AGAIN"
+	//JobStatusUnknow 表示未知任务状态
+	JobStatusUnknow JobStatus = "UNKNOW"
 )
 
-func (this JobStatus) String() string {
-
-	switch this {
-	case JobStatusWating:
-		return "waiting"
-	case JobStatusDoing:
-		return "doing"
-	case JobStatusFailed:
-		return "failed"
-	case JobStatusSuccess:
-		return "success"
-	case JobStatusAgain:
-		return "again"
-	case JobStatusKill:
-		return "kill"
-	case JobStatusUnknow:
-		return "unknow"
-	}
-
-	return "unknow"
-}
-
-//任务函数返回信息
-type JobReturn struct {
-	Status JobStatus //任务状态
-	Msg    string    //任务执行结果
-}
-
+//JobState 代表任务完整状态
+//JobState 不会被永久存储
 type JobState struct {
-	JobId      string
+	ID         string    //任务ID
+	Status     JobStatus //任务状态
+	Created    time.Time //任务创建时间
+	LastUpdate time.Time //任务状态最后更新时间
+	Msg        string    //任务返回的信息
+}
+
+func (state *JobState) MarshalBinary() ([]byte, error) {
+	return json.Marshal(state)
+}
+
+func (state *JobState) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, state)
+}
+
+type Job struct {
+	ID         string
 	Name       string
-	Status     string
-	Msg        string
-	RunTime    int
-	WaitTime   int
+	Message    string
+	Created    time.Time
+	Status     JobStatus
 	ReplyCount int
 }
 
-func (this *JobState) MarshalBinary() ([]byte, error) {
-
-	return json.Marshal(this)
+func NewJob(name, message string) *Job {
+	job := new(Job)
+	job.ID = GUID()
+	job.Name = name
+	job.Message = message
+	job.Created = time.Now()
+	job.Status = JobStatusWaiting
+	return job
 }
 
-func (this *JobState) UnmarshalBinary(data []byte) error {
-
-	d := json.NewDecoder(strings.NewReader(string(data)))
-	d.UseNumber()
-	return d.Decode(this)
+func (state *Job) MarshalBinary() ([]byte, error) {
+	return json.Marshal(state)
 }
 
-//任务函数定义
-type JobHandler func(job *Job) JobReturn
-
-//任务回调函数定义
-type JobCallback func(job *Job)
-
-//任务
-//todo 优先队列的支持
-type Job struct {
-	Id         string      //任务id,使用/dev/urandom 获取
-	Name       string      //任务名称,调度器注册的任务名称
-	Param      interface{} //任务参数
-	CreateTime time.Time   //任务创建时间
-	FlushTime  time.Time   //任务结束时间
-	Status     JobStatus   //任务状态
-	ReplyCount uint32      //重试次数
+func (state *Job) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, state)
 }
 
-func (this *Job) MarshalBinary() ([]byte, error) {
-
-	return json.Marshal(this)
-}
-
-func (this *Job) UnmarshalBinary(data []byte) error {
-
-	d := json.NewDecoder(strings.NewReader(string(data)))
-	d.UseNumber()
-	return d.Decode(this)
+type Return struct {
+	Status JobStatus
+	Msg    string
 }
