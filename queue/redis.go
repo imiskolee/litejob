@@ -35,7 +35,7 @@ type Redis struct {
 	sync.Mutex
 	client     *redis.Client
 	configure  litejob.QueueConfigure
-	queues     map[string]JobQueueState
+	queues     map[string]*JobQueueState
 	lastUpdate time.Time
 }
 
@@ -58,15 +58,18 @@ func NewRedis(configure *litejob.QueueConfigure) litejob.Queue {
 	}
 
 	engine.client = redis.NewClient(options)
-	engine.queues = make(map[string]JobQueueState, 0)
+	engine.queues = make(map[string]*JobQueueState, 0)
 	return engine
 }
 
 func (queue *Redis) RegisterJob(name string, max int) {
-	queue.queues[name] = JobQueueState{
-		Max:  max,
-		Work: true,
-	}
+
+	state := new(JobQueueState)
+
+	state.Max = max
+	state.Work = true
+
+	queue.queues[name] = state
 }
 
 func (queue *Redis) Push(job *litejob.Job) error {
