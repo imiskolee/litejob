@@ -56,7 +56,6 @@ func (dispatch *Dispatch) Run() {
 func (dispatch *Dispatch) loop() {
 
 	for {
-
 		jobs, err := dispatch.queue.PopN(10)
 
 		if err != nil {
@@ -71,7 +70,7 @@ func (dispatch *Dispatch) loop() {
 		dispatch.Lock()
 		for _, job := range jobs {
 			dispatch.running++
-			go dispatch.runJob(&job)
+			go dispatch.runJob(job)
 		}
 		dispatch.Unlock()
 		runtime.Gosched()
@@ -84,10 +83,11 @@ func (dispatch *Dispatch) loop() {
 
 }
 
-func (dispatch *Dispatch) runJob(job *Job) {
+func (dispatch *Dispatch) runJob(job Job) {
 
 	defer func() {
 		dispatch.running--
+		dispatch.queue.FlushJob(&job)
 	}()
 
 	defer func() {
@@ -104,26 +104,25 @@ func (dispatch *Dispatch) runJob(job *Job) {
 	}
 
 	if dispatch.configure.Before != nil {
-		dispatch.configure.Before(job)
+		dispatch.configure.Before(&job)
 	}
+
 	startTime := time.Now()
-	ret := handler(job)
+	ret := handler(&job)
 	endTime := time.Now()
 
 	runTime := endTime.Sub(startTime)
 	waitTime := endTime.Sub(job.Created)
 
 	if ret.Status == JobStatusAgain {
-
 		if job.ReplyCount < dispatch.configure.MaxReplyCount {
+			job.Status = ret.Status
 			job.ReplyCount++
-			dispatch.queue.Push(job)
+			dispatch.queue.Push(&job)
 		} else {
 			ret.Status = JobStatusFailed
 		}
 	}
-
-	dispatch.queue.FlushJob(job)
 
 	dispatch.Lock()
 	dispatch.count++

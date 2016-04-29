@@ -76,7 +76,10 @@ func (queue *Redis) Push(job *litejob.Job) error {
 	if err != nil {
 		return errors.New("[litejob] MarshalBinary error:" + err.Error())
 	}
+
+	queue.Lock()
 	queue.client.LPush(queue.getJobKey(job.Name), string(data))
+	queue.Unlock()
 	return err
 }
 
@@ -90,9 +93,7 @@ func (queue *Redis) PopN(max int) ([]litejob.Job, error) {
 	}
 
 	waitings := []string{}
-
 	for name, v := range queue.queues {
-
 		//过滤
 		if v.Len < 1 || v.Work == false || v.Max <= v.Running {
 			continue
@@ -123,10 +124,12 @@ func (queue *Redis) PopN(max int) ([]litejob.Job, error) {
 		if err != nil {
 			continue
 		}
+		queue.Lock()
 		s := queue.queues[name]
 		s.Running++
-		queue.queues[name] = s
+		queue.Unlock()
 		jobs = append(jobs, job)
+
 	}
 
 	return jobs, nil
@@ -136,9 +139,8 @@ func (queue *Redis) PopN(max int) ([]litejob.Job, error) {
 func (queue *Redis) FlushJob(job *litejob.Job) {
 
 	queue.Lock()
-	s := queue.queues[job.Name]
+	s := (queue.queues[job.Name])
 	s.Running--
-	queue.queues[job.Name] = s
 	queue.Unlock()
 }
 
