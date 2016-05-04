@@ -1,10 +1,20 @@
 package litejob
 
-import "errors"
+import (
+	"errors"
+)
 
 var queues map[string]QueueInitFunc
 
 type QueueInitFunc func(configure *QueueConfigure) Queue
+
+type JobQueueState struct {
+	Name    string
+	Len     int
+	Work    bool
+	Max     int
+	Running int
+}
 
 //Queue 任务队列
 type Queue interface {
@@ -12,7 +22,9 @@ type Queue interface {
 	PopN(max int) ([]Job, error)
 	RegisterJob(name string, max int)
 	UpdateJobStatus(name string, status JobStatus, msg string)
+	GetAllQueue() map[string]*JobQueueState
 	FlushJob(job *Job)
+	Monitor() map[string]map[string]interface{}
 }
 
 func GetQueue(name string, configure *QueueConfigure) (Queue, error) {

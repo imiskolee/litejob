@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"strings"
+
 	"github.com/imiskolee/litejob"
 	"gopkg.in/redis.v3"
 )
@@ -23,19 +25,11 @@ var defaultRedisQueueEngineConfigure litejob.QueueConfigure = litejob.QueueConfi
 	"prefix":        "litejob",
 }
 
-type JobQueueState struct {
-	Name    string
-	Len     int
-	Work    bool
-	Max     int
-	Running int
-}
-
 type Redis struct {
 	sync.Mutex
 	client     *redis.Client
 	configure  litejob.QueueConfigure
-	queues     map[string]*JobQueueState
+	queues     map[string]*litejob.JobQueueState
 	lastUpdate time.Time
 }
 
@@ -58,17 +52,15 @@ func NewRedis(configure *litejob.QueueConfigure) litejob.Queue {
 	}
 
 	engine.client = redis.NewClient(options)
-	engine.queues = make(map[string]*JobQueueState, 0)
+	engine.queues = make(map[string]*litejob.JobQueueState, 0)
 	return engine
 }
 
 func (queue *Redis) RegisterJob(name string, max int) {
 
-	state := new(JobQueueState)
-
+	state := new(litejob.JobQueueState)
 	state.Max = max
 	state.Work = true
-
 	queue.queues[name] = state
 }
 
@@ -79,7 +71,6 @@ func (queue *Redis) Push(job *litejob.Job) error {
 	if err != nil {
 		return errors.New("[litejob] MarshalBinary error:" + err.Error())
 	}
-
 	queue.Lock()
 	queue.client.LPush(queue.getJobKey(job.Name), string(data))
 	queue.Unlock()
@@ -163,6 +154,22 @@ func (queue *Redis) syncState() {
 	}
 }
 
+func (queue *Redis) Monitor() map[string]map[string]interface{} {
+
+	cmd := queue.client.Keys(queue.getJobKey("*"))
+	keys, _ := cmd.Result()
+	ret := make(map[string]map[string]interface{}, 0)
+
+	for _, key := range keys {
+		name := strings.Replace(key, queue.getJobKey(""), "", 2)
+		cmd := queue.client.LLen(key)
+		ret[name] = map[string]interface{}{
+			"Len": cmd.Val(),
+		}
+	}
+	return ret
+}
+
 func (queue *Redis) getJobKey(name string) string {
 
 	return fmt.Sprintf("%s:%s:%s", queue.configure["prefix"], "job", name)
@@ -171,6 +178,10 @@ func (queue *Redis) getJobKey(name string) string {
 func (queue *Redis) getStateKey(id string) string {
 
 	return fmt.Sprintf("%s:%s:%s", queue.configure["prefix"], "state", id)
+}
+
+func (queue *Redis) GetAllQueue() map[string]*litejob.JobQueueState {
+	return queue.queues
 }
 
 func init() {

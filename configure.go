@@ -1,6 +1,9 @@
 package litejob
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type QueueConfigure map[string]interface{}
 
@@ -10,6 +13,10 @@ func (configure *QueueConfigure) Merge(src QueueConfigure) {
 			(*configure)[k] = v
 		}
 	}
+}
+
+func (configure *QueueConfigure) ReadFromString(str string) error {
+	return json.Unmarshal([]byte(str), configure)
 }
 
 type Configure struct {

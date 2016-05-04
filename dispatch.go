@@ -11,12 +11,12 @@ import (
 
 type Dispatch struct {
 	sync.Mutex
+	ID        string
 	queue     Queue
 	configure *Configure
 	handlers  map[string]JobHandler
-
-	running int
-	count   int
+	running   int
+	count     int
 }
 
 func NewDispatch(configure *Configure) (*Dispatch, error) {
@@ -36,7 +36,6 @@ func NewDispatch(configure *Configure) (*Dispatch, error) {
 }
 
 func (dispatch *Dispatch) Register(name string, handler JobHandler, max int) {
-
 	dispatch.handlers[name] = handler
 	dispatch.queue.RegisterJob(name, max)
 }
@@ -49,8 +48,15 @@ func (dispatch *Dispatch) Push(name, message string) (*Job, error) {
 }
 
 func (dispatch *Dispatch) Run() {
-
 	dispatch.loop()
+}
+
+func (dispatch *Dispatch) GetAllQueue() map[string]*JobQueueState {
+	return dispatch.queue.GetAllQueue()
+}
+
+func (dispatch *Dispatch) Monitor() map[string]map[string]interface{} {
+	return dispatch.queue.Monitor()
 }
 
 func (dispatch *Dispatch) loop() {
@@ -63,7 +69,6 @@ func (dispatch *Dispatch) loop() {
 		}
 
 		if len(jobs) < 1 {
-
 			goto next
 		}
 
@@ -80,7 +85,6 @@ func (dispatch *Dispatch) loop() {
 		runtime.Gosched()
 		time.Sleep(dispatch.configure.HeartInterval)
 	}
-
 }
 
 func (dispatch *Dispatch) runJob(job Job) {
