@@ -19,6 +19,8 @@ const (
 	JobStatusAgain JobStatus = "AGAIN"
 	//JobStatusUnknow 表示未知任务状态
 	JobStatusUnknow JobStatus = "UNKNOW"
+	//JobStatusError 任务失败（参数异常，网络异常等）
+	JobStatusError JobStatus = "ERROR"
 )
 
 //JobState 代表任务完整状态

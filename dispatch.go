@@ -114,6 +114,11 @@ func (dispatch *Dispatch) runJob(job Job) {
 	startTime := time.Now()
 	ret := handler(&job)
 	endTime := time.Now()
+	job.Status = ret.Status
+
+	if dispatch.configure.After != nil {
+		dispatch.configure.After(&job)
+	}
 
 	runTime := endTime.Sub(startTime)
 	waitTime := endTime.Sub(job.Created)
