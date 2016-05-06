@@ -72,8 +72,11 @@ func (queue *Redis) Push(job *litejob.Job) error {
 		return errors.New("[litejob] MarshalBinary error:" + err.Error())
 	}
 	queue.Lock()
-	queue.client.LPush(queue.getJobKey(job.Name), string(data))
+	cmd := queue.client.LPush(queue.getJobKey(job.Name), string(data))
 	queue.Unlock()
+	if cmd.Err() != nil {
+		return cmd.Err()
+	}
 	return err
 }
 
@@ -150,7 +153,9 @@ func (queue *Redis) syncState() {
 			continue
 		}
 		v.Len = int(cmd.Val())
+		queue.Lock()
 		queue.queues[name] = v
+		queue.Unlock()
 	}
 }
 
