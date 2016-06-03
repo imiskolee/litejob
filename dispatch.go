@@ -36,8 +36,10 @@ func NewDispatch(configure *Configure) (*Dispatch, error) {
 }
 
 func (dispatch *Dispatch) Register(name string, handler JobHandler, max int) {
+	dispatch.Lock()
 	dispatch.handlers[name] = handler
 	dispatch.queue.RegisterJob(name, max)
+	dispatch.Unlock()
 }
 
 func (dispatch *Dispatch) Push(name, message string) (*Job, error) {
