@@ -61,7 +61,9 @@ func (queue *Redis) RegisterJob(name string, max int) {
 	state := new(litejob.JobQueueState)
 	state.Max = max
 	state.Work = true
+	queue.Lock()
 	queue.queues[name] = state
+	queue.Lock()
 }
 
 func (queue *Redis) Push(job *litejob.Job) error {
