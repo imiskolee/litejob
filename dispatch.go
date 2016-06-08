@@ -2,6 +2,7 @@ package litejob
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -98,6 +99,7 @@ func (dispatch *Dispatch) runJob(job Job) {
 
 	defer func() {
 		if err := recover(); err != nil {
+			log.Println("[Core Error] ", err)
 			debug.PrintStack()
 		}
 	}()
