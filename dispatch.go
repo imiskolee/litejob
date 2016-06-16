@@ -103,8 +103,9 @@ func (dispatch *Dispatch) runJob(job Job) {
 			debug.PrintStack()
 		}
 	}()
-
+	dispatch.Lock()
 	handler, ok := dispatch.handlers[job.Name]
+	dispatch.Unlock()
 
 	if !ok {
 		fmt.Fprintf(os.Stdout, "[litejob] unregisterd job:"+job.Name)
