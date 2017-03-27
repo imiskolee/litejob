@@ -86,7 +86,7 @@ func (queue *Redis) PopN(max int) ([]litejob.Job, error) {
 
 	now := time.Now()
 
-	if now.Sub(queue.lastUpdate) > 120*time.Second {
+	if now.Sub(queue.lastUpdate) > 60*time.Second {
 		queue.syncState()
 		queue.lastUpdate = now
 	}
