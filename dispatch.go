@@ -50,12 +50,22 @@ func (dispatch *Dispatch) Push(name, message string) (*Job, error) {
 	return job, err
 }
 
+func (dispatch *Dispatch) PushFront(name, message string) (*Job, error) {
+	job := NewJob(name, message)
+	err := dispatch.queue.PushFront(job)
+	return job, err
+}
+
 func (dispatch *Dispatch) Run() {
 	dispatch.loop()
 }
 
 func (dispatch *Dispatch) GetAllQueue() map[string]*JobQueueState {
 	return dispatch.queue.GetAllQueue()
+}
+
+func (dispatch *Dispatch) GetQueueSize(name string) (uint32, error) {
+	return dispatch.queue.GetQueueSize(name)
 }
 
 func (dispatch *Dispatch) Monitor() map[string]map[string]interface{} {
