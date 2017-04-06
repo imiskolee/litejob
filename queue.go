@@ -19,6 +19,8 @@ type JobQueueState struct {
 //Queue 任务队列
 type Queue interface {
 	Push(job *Job) error
+	PushFront(job *Job) error
+	GetQueueSize(name string) (uint32, error)
 	PopN(max int) ([]Job, error)
 	RegisterJob(name string, max int)
 	UpdateJobStatus(name string, status JobStatus, msg string)

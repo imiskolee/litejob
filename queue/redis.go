@@ -82,6 +82,35 @@ func (queue *Redis) Push(job *litejob.Job) error {
 	return err
 }
 
+func (queue *Redis) PushFront(job *litejob.Job) error {
+
+	data, err := job.MarshalBinary()
+	if err != nil {
+		return errors.New("[litejob] MarshalBinary error:" + err.Error())
+	}
+	queue.Lock()
+	cmd := queue.client.RPush(queue.getJobKey(job.Name), string(data))
+	queue.Unlock()
+	if cmd.Err() != nil {
+		return cmd.Err()
+	}
+	return err
+}
+
+func (queue *Redis) GetQueueSize(name string) (uint32, error) {
+
+	jobKey := queue.getJobKey(name)
+
+	cmd := queue.client.LLen(jobKey)
+
+	if cmd.Err() != nil {
+		return 0, cmd.Err()
+	}
+
+	val := cmd.Val()
+	return uint32(val), nil
+}
+
 func (queue *Redis) PopN(max int) ([]litejob.Job, error) {
 
 	now := time.Now()
