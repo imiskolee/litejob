@@ -150,7 +150,9 @@ func (dispatch *Dispatch) runJob(job Job) {
 
 	dispatch.Lock()
 	dispatch.count++
-	fmt.Fprintf(os.Stdout, "[%s] %6d %32s %32s %s %s %s %s\n", endTime.Format(time.ANSIC), dispatch.count, job.Name, job.ID, ret.Status, runTime, waitTime, ret.Msg)
+	if ret.Status != JobStatusSuccess {
+		fmt.Fprintf(os.Stdout, "[%s] %6d %32s %32s %s %s %s %s\n", endTime.Format(time.ANSIC), dispatch.count, job.Name, job.ID, ret.Status, runTime, waitTime, ret.Msg)
+	}
 	dispatch.Unlock()
 
 	dispatch.queue.UpdateJobStatus(job.Name, ret.Status, ret.Msg)
